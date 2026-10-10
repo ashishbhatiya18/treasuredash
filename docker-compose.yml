@@ -1,0 +1,35 @@
+# Run the production image locally: Treasure Dash + PostgreSQL 14.
+#   docker compose up --build    →  http://localhost:8080
+# (No login: in production the app sits behind webauthn-proxy.)
+services:
+  treasuredash:
+    build: .
+    image: ghcr.io/ashishbhatiya18/treasure-dash:latest
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://treasuredash:treasuredash@postgres:5432/treasuredash?search_path=treasuredash&sslmode=disable
+      # Optional: reads bill photos/PDFs automatically
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - bills:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: treasuredash
+      POSTGRES_PASSWORD: treasuredash
+      POSTGRES_DB: treasuredash
+    volumes:
+      - pg:/var/lib/postgresql/data
+      - ./scripts/init-schema.sql:/docker-entrypoint-initdb.d/init-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "treasuredash"]
+      interval: 5s
+      retries: 10
+volumes:
+  bills:
+  pg:

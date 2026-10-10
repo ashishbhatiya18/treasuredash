@@ -1,0 +1,108 @@
+version: "3"
+
+# `task dev` runs the Go API (:8080) and the Next dev server (:3000, proxies /api)
+# side by side. Open http://localhost:3000.
+# Settings come from .env.local (git-ignored): DATABASE_URL set = PostgreSQL,
+# empty = SQLite in DATA_DIR.
+
+dotenv: [".env.local"]
+
+vars:
+  DATA: '{{.DATA_DIR | default "./data-store"}}'
+  PGBIN: /opt/homebrew/opt/postgresql@14/bin
+  PGDATA: ./.pg
+  PGPORT: "55432"
+  WORKBOOK:
+    sh: ls data/*.xlsx 2>/dev/null | head -1 || true
+
+tasks:
+  default:
+    cmds: [task --list]
+    silent: true
+
+  dev:
+    desc: Run API + web locally with hot reload (http://localhost:3000)
+    cmds:
+      - task: setup
+      - task: servers
+
+  servers:
+    internal: true
+    deps: [dev:api, dev:web]
+
+  setup:
+    desc: Install web deps, start local Postgres (if configured) and fill an empty database
+    deps: [web:install]
+    cmds:
+      - task: pg:start
+      - task: seed
+
+  web:install:
+    dir: web
+    sources: [package.json, package-lock.json]
+    status: [test -d node_modules]
+    cmds: [npm ci]
+
+  seed:
+    desc: Fill an empty database – copies ./data-store/assofin.db into Postgres, else imports the workbook in data/
+    dir: backend
+    cmds:
+      - go run . -data ../{{.DATA}} -bootstrap {{if .WORKBOOK}}-import "../{{.WORKBOOK}}"{{end}}
+
+  dev:api:
+    desc: Go API on :8080
+    dir: backend
+    cmds:
+      - go run . -data ../{{.DATA}} -addr :8080
+
+  dev:web:
+    desc: Next dev server on :3000
+    dir: web
+    cmds:
+      - npx next dev -p 3000
+
+  pg:start:
+    desc: Start the local Postgres 14 cluster in ./.pg (created on first run with db/schema/role treasuredash)
+    status:
+      - '[ -z "$DATABASE_URL" ] || {{.PGBIN}}/pg_isready -q -h localhost -p {{.PGPORT}}'
+    cmds:
+      - |
+        if [ ! -d {{.PGDATA}} ]; then
+          {{.PGBIN}}/initdb -D {{.PGDATA}} -U postgres --auth=trust -E UTF8 >/dev/null
+          FRESH=1
+        fi
+        {{.PGBIN}}/pg_ctl -D {{.PGDATA}} -o "-p {{.PGPORT}} -c unix_socket_directories=''" -l {{.PGDATA}}/server.log start >/dev/null
+        sleep 1
+        if [ -n "$FRESH" ]; then
+          {{.PGBIN}}/psql -h localhost -p {{.PGPORT}} -U postgres -q -c "CREATE ROLE treasuredash LOGIN PASSWORD 'devpass'" -c "CREATE DATABASE treasuredash OWNER treasuredash"
+          {{.PGBIN}}/psql -h localhost -p {{.PGPORT}} -U postgres -d treasuredash -q -c "CREATE SCHEMA treasuredash AUTHORIZATION treasuredash"
+        fi
+
+  pg:stop:
+    desc: Stop the local Postgres cluster
+    cmds: ['{{.PGBIN}}/pg_ctl -D {{.PGDATA}} stop']
+
+  test:
+    desc: Backend tests on SQLite
+    dir: backend
+    cmds: [go test ./...]
+
+  test:pg:
+    desc: Backend tests on the local Postgres (each test gets a throwaway schema)
+    deps: [pg:start]
+    dir: backend
+    env:
+      TEST_PG_URL: postgres://postgres@localhost:{{.PGPORT}}/treasuredash
+    cmds: [go test ./...]
+
+  build:
+    desc: Build the single binary with the frontend embedded (./bin/assofin)
+    cmds:
+      - cd web && npm ci && npx next build
+      - rm -rf backend/internal/server/dist && cp -r web/out backend/internal/server/dist && touch backend/internal/server/dist/.gitkeep
+      - cd backend && CGO_ENABLED=0 go build -o ../bin/assofin .
+
+  reset:
+    desc: Delete the local SQLite data (./data-store); Postgres data is in ./.pg
+    prompt: This deletes {{.DATA}}. Continue?
+    cmds: ['rm -rf {{.DATA}}']

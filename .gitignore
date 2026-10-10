@@ -1,0 +1,21 @@
+# association data: residents' details, bank statements, the live database
+data/
+data-store/
+*.db
+*.db-wal
+*.db-shm
+.env
+
+# build output
+bin/
+web/node_modules/
+web/.next/
+web/out/
+web/next-env.d.ts
+backend/internal/server/dist/*
+!backend/internal/server/dist/.gitkeep
+.DS_Store
+.task/
+.env.local
+.pg/
+*.tsbuildinfo

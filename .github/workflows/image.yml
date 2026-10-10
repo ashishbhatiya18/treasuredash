@@ -1,0 +1,120 @@
+# Treasure Dash: test on every change (SQLite and PostgreSQL 14); on main, push
+# the distroless image to ghcr.io/ashishbhatiya18/treasure-dash (:latest + :<sha>),
+# which the homelab stack on node ab pulls.
+name: image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/ashishbhatiya18/treasure-dash
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: treasuredash
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+      - run: go vet ./...
+      - name: Tests on SQLite
+        run: go test -count=1 ./...
+      - name: Tests on PostgreSQL
+        run: go test -count=1 ./...
+        env:
+          TEST_PG_URL: postgres://postgres:postgres@localhost:5432/treasuredash?sslmode=disable
+
+  web:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npx next build
+
+  image:
+    name: Image
+    needs: [test, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=long,prefix=
+
+      - name: Build (load for smoke test)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: treasure-dash:smoke
+          cache-from: type=gha,scope=treasure-dash
+          cache-to: type=gha,mode=max,scope=treasure-dash
+
+      - name: Smoke test
+        run: |
+          # pdftotext and its libraries work inside distroless
+          docker run --rm --entrypoint /usr/bin/pdftotext treasure-dash:smoke -v
+          # the app starts on SQLite and serves the UI and API
+          docker run -d --name td -p 8080:8080 treasure-dash:smoke
+          for i in $(seq 1 30); do curl -fsS localhost:8080/api/settings >/dev/null && break; sleep 1; done
+          curl -fsS localhost:8080/api/settings >/dev/null
+          curl -fsS localhost:8080/ | grep -q "Treasure Dash"
+          docker logs td
+          docker rm -f td
+
+      - name: Push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=treasure-dash
