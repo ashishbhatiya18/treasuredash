@@ -1,13 +1,14 @@
 # association data: residents' details, bank statements, the live database
-data/
-data-store/
+# (anchored to the repo root: web/app/data is the bulk-edit page)
+/data/
+/data-store/
 *.db
 *.db-wal
 *.db-shm
 .env
 
 # build output
-bin/
+/bin/
 web/node_modules/
 web/.next/
 web/out/
@@ -17,5 +18,5 @@ backend/internal/server/dist/*
 .DS_Store
 .task/
 .env.local
-.pg/
+/.pg/
 *.tsbuildinfo
