@@ -21,13 +21,17 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/usr/local/bin/trea
 # ---- 3. pdftotext and exactly the shared libraries it links against -----------------
 # Bank statements are read with poppler's pdftotext; distroless has no package
 # manager, so the binary and its libraries are copied over from Debian 12 (the
-# same release the distroless base is built on).
+# same release the distroless base is built on). Library paths are resolved
+# through Debian's /lib → /usr/lib symlink so everything lands under /usr,
+# saved under the soname the loader asks for.
 FROM debian:12-slim AS poppler
 RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 RUN set -eu; mkdir -p /out/usr/bin /out/data; \
     cp /usr/bin/pdftotext /out/usr/bin/; \
     for lib in $(ldd /usr/bin/pdftotext | awk '/=>/ {print $3}'); do \
-      mkdir -p "/out$(dirname "$lib")"; cp -L "$lib" "/out$lib"; \
+      real=$(realpath "$lib"); \
+      case "$real" in /usr/*) ;; *) echo "unexpected library path $real"; exit 1 ;; esac; \
+      mkdir -p "/out$(dirname "$real")"; cp "$real" "/out$(dirname "$real")/$(basename "$lib")"; \
     done; \
     mkdir -p /out/etc && cp -r /etc/fonts /out/etc/fonts
 
