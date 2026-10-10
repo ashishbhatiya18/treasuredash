@@ -1,4 +1,4 @@
-module assofin
+module treasuredash
 
 go 1.27.1
 

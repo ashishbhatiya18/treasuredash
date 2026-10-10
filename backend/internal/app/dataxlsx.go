@@ -142,7 +142,7 @@ func (a *App) WriteWorkbook(w io.Writer) error {
 				x.SetCellStyle(tab, cn+"1", cn+"1", st)
 			}
 			if c.Help != "" {
-				x.AddComment(tab, excelize.Comment{Cell: cn + "1", Author: "assofin", Paragraph: []excelize.RichTextRun{{Text: c.Help}}})
+				x.AddComment(tab, excelize.Comment{Cell: cn + "1", Author: "Treasure Dash", Paragraph: []excelize.RichTextRun{{Text: c.Help}}})
 			}
 			if ref, ok := listRef[s.Name+"."+c.Key]; ok {
 				dv := excelize.NewDataValidation(true)

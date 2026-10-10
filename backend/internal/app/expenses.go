@@ -1,11 +1,11 @@
 package app
 
 import (
-	"assofin/internal/db"
 	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
+	"treasuredash/internal/db"
 )
 
 type Category struct {

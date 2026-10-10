@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"assofin/internal/bank"
+	"treasuredash/internal/bank"
 )
 
 // Default rules for outgoing payments, learned from the treasury sheet's payees.

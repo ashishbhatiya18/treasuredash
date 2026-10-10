@@ -1,4 +1,4 @@
-// Command assofin runs the apartment association treasury app: JSON API,
+// Command treasuredash runs Treasure Dash, the association treasury app: JSON API,
 // embedded static frontend and the background scheduler in one process.
 package main
 
@@ -14,9 +14,9 @@ import (
 
 	"github.com/robfig/cron/v3"
 
-	"assofin/internal/app"
-	"assofin/internal/db"
-	"assofin/internal/server"
+	"treasuredash/internal/app"
+	"treasuredash/internal/db"
+	"treasuredash/internal/server"
 )
 
 func env(k, def string) string {
@@ -34,7 +34,7 @@ func main() {
 	copyFrom := flag.String("copy-from-sqlite", "", "copy every table from this SQLite file into -database-url and exit")
 	force := flag.Bool("force", false, "with -copy-from-sqlite: replace data already in PostgreSQL")
 	health := flag.Bool("healthcheck", false, "exit 0 if the server on -addr answers (for container health checks; the image has no shell or curl)")
-	bootstrap := flag.Bool("bootstrap", false, "fill an empty database and exit: copy -data/assofin.db into PostgreSQL if present, else import -import")
+	bootstrap := flag.Bool("bootstrap", false, "fill an empty database and exit: copy the SQLite database in -data into PostgreSQL if present, else import -import")
 	flag.Parse()
 
 	if *health {
@@ -106,12 +106,12 @@ func main() {
 	c.AddFunc("0 2 * * *", func() {
 		dir := filepath.Join(*dataDir, "backups")
 		os.MkdirAll(dir, 0o755)
-		name := filepath.Join(dir, "assofin-"+app.Today().Format(app.DateFmt)+".db")
+		name := filepath.Join(dir, "treasuredash-"+app.Today().Format(app.DateFmt)+".db")
 		os.Remove(name)
 		if err := a.DB.Snapshot(name); err != nil {
 			log.Printf("backup: %v", err)
 		}
-		if old, _ := filepath.Glob(filepath.Join(dir, "assofin-*.db")); len(old) > 14 {
+		if old, _ := filepath.Glob(filepath.Join(dir, "treasuredash-*.db")); len(old) > 14 {
 			for _, f := range old[:len(old)-14] {
 				os.Remove(f)
 			}
@@ -137,8 +137,8 @@ func copySQLite(file, dataDir, url string, force bool) error {
 	if url == "" {
 		return fmt.Errorf("-copy-from-sqlite needs -database-url / DATABASE_URL")
 	}
-	if filepath.Base(file) != "assofin.db" {
-		return fmt.Errorf("expected the app's assofin.db file, got %s", file)
+	if b := filepath.Base(file); b != "treasuredash.db" && b != "assofin.db" {
+		return fmt.Errorf("expected the app's treasuredash.db file, got %s", file)
 	}
 	src, err := app.Open(filepath.Dir(file))
 	if err != nil {
@@ -177,7 +177,7 @@ func bootstrapDB(dataDir, url, workbook string) error {
 		}
 		return err
 	}
-	lite := filepath.Join(dataDir, "assofin.db")
+	lite := app.SQLitePath(dataDir)
 	if _, err := os.Stat(lite); err == nil && a.DB.PG {
 		a.DB.Close()
 		fmt.Println("copying", lite, "into PostgreSQL")

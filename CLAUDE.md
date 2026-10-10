@@ -10,7 +10,7 @@ Treasure Dash: treasury app for an apartment owners' association (billing, HDFC 
 task dev            # loads .env.local; starts local Postgres 14 (./.pg, :55432), fills an empty DB, API :8080 + Next dev :3000
 task test           # backend tests on SQLite
 task test:pg        # same tests on the local Postgres (TEST_PG_URL → throwaway schema per test)
-task build          # next build → backend/internal/server/dist → ./bin/assofin
+task build          # next build → backend/internal/server/dist → ./bin/treasuredash
 docker compose up --build   # production image + postgres:14
 
 cd backend && go test ./internal/app -run TestOverlappingStatements -v       # single test
@@ -18,7 +18,7 @@ cd backend && TEST_PG_URL=postgres://postgres@localhost:55432/treasuredash go te
 cd web && npx next build    # frontend type-check
 ```
 
-`DATABASE_URL` set → PostgreSQL (schema via `search_path`), unset → SQLite in `DATA_DIR`. `pdftotext` (poppler) must be on PATH. Flags: `-import FILE.xlsx`, `-copy-from-sqlite PATH/assofin.db [-force]`, `-bootstrap`. CI: `.github/workflows/image.yml` (tests on both engines, distroless image to `ghcr.io/ashishbhatiya18/treasure-dash`).
+`DATABASE_URL` set → PostgreSQL (schema via `search_path`), unset → SQLite in `DATA_DIR`. `pdftotext` (poppler) must be on PATH. Flags: `-import FILE.xlsx`, `-copy-from-sqlite PATH/treasuredash.db [-force]`, `-bootstrap`. CI: `.github/workflows/image.yml` (tests on both engines, distroless image to `ghcr.io/ashishbhatiya18/treasure-dash`).
 
 `backend/internal/server/dist` is embedded (`go:embed all:dist`, only `.gitkeep` is committed). The binary serves whatever was last copied there; `task build` refreshes it. `task dev` serves the frontend from Next dev instead.
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"assofin/internal/app"
+	"treasuredash/internal/app"
 )
 
 func call(t *testing.T, s *Server, method, url, body string) (int, string) {

@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"assofin/internal/bank"
+	"treasuredash/internal/bank"
 )
 
 // Overlapping or repeated statements must not duplicate transactions or

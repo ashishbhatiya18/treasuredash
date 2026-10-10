@@ -1,7 +1,6 @@
 package app
 
 import (
-	"assofin/internal/db"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -14,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"treasuredash/internal/db"
 
 	"github.com/xuri/excelize/v2"
 )

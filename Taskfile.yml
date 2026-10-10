@@ -44,7 +44,7 @@ tasks:
     cmds: [npm ci]
 
   seed:
-    desc: Fill an empty database – copies ./data-store/assofin.db into Postgres, else imports the workbook in data/
+    desc: Fill an empty database – copies ./data-store/treasuredash.db (SQLite) into Postgres, else imports the workbook in data/
     dir: backend
     cmds:
       - go run . -data ../{{.DATA}} -bootstrap {{if .WORKBOOK}}-import "../{{.WORKBOOK}}"{{end}}
@@ -96,11 +96,11 @@ tasks:
     cmds: [go test ./...]
 
   build:
-    desc: Build the single binary with the frontend embedded (./bin/assofin)
+    desc: Build the single binary with the frontend embedded (./bin/treasuredash)
     cmds:
       - cd web && npm ci && npx next build
       - rm -rf backend/internal/server/dist && cp -r web/out backend/internal/server/dist && touch backend/internal/server/dist/.gitkeep
-      - cd backend && CGO_ENABLED=0 go build -o ../bin/assofin .
+      - cd backend && CGO_ENABLED=0 go build -o ../bin/treasuredash .
 
   reset:
     desc: Delete the local SQLite data (./data-store); Postgres data is in ./.pg

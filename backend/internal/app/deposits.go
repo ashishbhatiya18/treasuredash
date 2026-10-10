@@ -1,12 +1,12 @@
 package app
 
 import (
-	"assofin/internal/db"
 	"database/sql"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
+	"treasuredash/internal/db"
 )
 
 type Deposit struct {

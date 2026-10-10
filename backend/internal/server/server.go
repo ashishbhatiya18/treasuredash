@@ -22,7 +22,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"assofin/internal/app"
+	"treasuredash/internal/app"
 )
 
 // dist holds the static Next.js export; the Docker build copies web/out here.
@@ -1164,13 +1164,13 @@ func (s *Server) expensesCSV(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) backup(w http.ResponseWriter, r *http.Request) {
-	tmp := filepath.Join(os.TempDir(), fmt.Sprintf("assofin-backup-%d.db", time.Now().UnixNano()))
+	tmp := filepath.Join(os.TempDir(), fmt.Sprintf("treasuredash-backup-%d.db", time.Now().UnixNano()))
 	defer os.Remove(tmp)
 	if err := s.A.DB.Snapshot(tmp); err != nil {
 		fail(w, http.StatusNotImplemented, err)
 		return
 	}
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="assofin-%s.db"`, app.Today().Format(app.DateFmt)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="treasuredash-%s.db"`, app.Today().Format(app.DateFmt)))
 	http.ServeFile(w, r, tmp)
 }
 
@@ -1187,7 +1187,7 @@ func (s *Server) dataSheet(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) dataWorkbook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="assofin-data-%s.xlsx"`, app.Today().Format(app.DateFmt)))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="treasuredash-data-%s.xlsx"`, app.Today().Format(app.DateFmt)))
 	if err := s.A.WriteWorkbook(w); err != nil {
 		log.Printf("workbook: %v", err)
 	}

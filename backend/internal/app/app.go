@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"assofin/internal/db"
+	"treasuredash/internal/db"
 )
 
 type App struct {
@@ -28,7 +28,12 @@ func OpenWith(dataDir, databaseURL string) (*App, error) {
 	if err := os.MkdirAll(filepath.Join(dataDir, "bills"), 0o755); err != nil {
 		return nil, err
 	}
-	conn, err := db.Open(databaseURL, filepath.Join(dataDir, "assofin.db"))
+	if databaseURL == "" {
+		if err := renameLegacyDB(dataDir); err != nil {
+			return nil, err
+		}
+	}
+	conn, err := db.Open(databaseURL, SQLitePath(dataDir))
 	if err != nil {
 		return nil, err
 	}
@@ -293,4 +298,27 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(ks)
 	return ks
+}
+
+// SQLitePath is where the SQLite database lives inside dataDir.
+func SQLitePath(dataDir string) string { return filepath.Join(dataDir, "treasuredash.db") }
+
+// renameLegacyDB moves a database created under the app's old name
+// (assofin.db, with its WAL/SHM files) to treasuredash.db.
+func renameLegacyDB(dataDir string) error {
+	old := filepath.Join(dataDir, "assofin.db")
+	if _, err := os.Stat(SQLitePath(dataDir)); err == nil {
+		return nil
+	}
+	if _, err := os.Stat(old); err != nil {
+		return nil
+	}
+	for _, sfx := range []string{"", "-wal", "-shm"} {
+		if _, err := os.Stat(old + sfx); err == nil {
+			if err := os.Rename(old+sfx, SQLitePath(dataDir)+sfx); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
