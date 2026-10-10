@@ -127,7 +127,8 @@ export type Receipt = CreditView & { flat: string; owner: string };
 
 export type Statement = {
   id: number; filename: string; account_no: string; from_date: string; to_date: string;
-  opening: number; closing: number; uploaded_at: string; txns: number; new: number; review: number;
+  opening: number; closing: number; uploaded_at: string; txns: number; new: number;
+  calibration?: string; review: number;
   credits: number; debits: number; credits_resolved: number; debits_resolved: number; balanced: boolean; issues: string[];
 };
 
@@ -165,7 +166,7 @@ export type FundYear = {
   fy: string; income: number; surplus: number; percent: number; complete: boolean;
   completed_quarters: number; completed_income: number; completed_surplus: number; completed_percent: number;
 };
-export type SinkingFund = { opening: number; opening_note: string; balance: number; projected: number; quarters: FundQuarter[]; years: FundYear[]; current: FundYear };
+export type SinkingFund = { opening: number; opening_note: string; auto_opening: boolean; balance: number; projected: number; quarters: FundQuarter[]; years: FundYear[]; current: FundYear };
 
 export type Reminder = {
   id: number; period_id: string; seq: number; text: string; flats: string[];

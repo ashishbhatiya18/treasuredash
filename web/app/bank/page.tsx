@@ -62,6 +62,7 @@ export default function BankPage() {
     if (r) {
       setMsg(
         `Imported ${r.statement.filename}: ${r.statement.new} new transaction(s) (${fmtDate(r.statement.from_date)} – ${fmtDate(r.statement.to_date)}).` +
+          (r.statement.calibration ? ` ${r.statement.calibration}` : "") +
           (r.warning ? ` Warning: ${r.warning}` : ""),
       );
       statements.reload();

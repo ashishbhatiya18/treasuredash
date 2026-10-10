@@ -55,7 +55,9 @@ type StatementSummary struct {
 	UploadedAt string `json:"uploaded_at"`
 	Txns       int    `json:"txns"`
 	New        int    `json:"new"`
-	Review     int    `json:"review"`
+	// set when this upload recalculated the sinking-fund opening
+	Calibration string `json:"calibration,omitempty"`
+	Review      int    `json:"review"`
 	// integrity: transactions on record for the statement's dates must take the
 	// opening balance to the closing balance
 	Credits         int64    `json:"credits"`
@@ -179,6 +181,10 @@ func (a *App) importParsed(filename, hash string, st *bank.Statement, warn error
 	if _, err := a.ApplyLateFees(Today()); err != nil {
 		return nil, err
 	}
+	calibration, err := a.AutoCalibrateSinkingFund()
+	if err != nil {
+		return nil, err
+	}
 	ss, err := a.Statements()
 	if err != nil {
 		return nil, err
@@ -186,6 +192,7 @@ func (a *App) importParsed(filename, hash string, st *bank.Statement, warn error
 	for _, s := range ss {
 		if s.ID == sid {
 			s.New = len(newIDs)
+			s.Calibration = calibration
 			if warn != nil {
 				return &s, fmt.Errorf("imported with warning: %v", warn)
 			}

@@ -54,6 +54,10 @@ func OpenWith(dataDir, databaseURL string) (*App, error) {
 	if _, err := a.RegisterBookedDeposits(); err != nil {
 		return nil, err
 	}
+	// statements imported before automatic calibration existed
+	if _, err := a.AutoCalibrateSinkingFund(); err != nil {
+		return nil, err
+	}
 	return a, nil
 }
 
@@ -142,9 +146,13 @@ Regards,
 {{signatory}}`,
 	// Transactions dated before the cut-over are already reflected in the
 	// opening balances imported from the spreadsheet.
-	"cutover_date":           "2026-10-01",
-	"sinking_fund_opening":   "0",
-	"sinking_fund_note":      "",
+	"cutover_date":         "2026-10-01",
+	"sinking_fund_opening": "0",
+	"sinking_fund_note":    "",
+	// "1": re-anchor the opening on each newly covered quarter end (statement upload)
+	"sinking_fund_auto": "1",
+	// end date of the quarter the opening was last calibrated on
+	"sinking_fund_anchor":    "",
 	"reminder_interval_days": "3",
 	"reminder_auto":          "1",
 	"reminder_template": `Reminder#{{seq}}

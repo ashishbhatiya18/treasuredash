@@ -212,6 +212,18 @@ function Calibrate({ s, periods, onDone }: { s: SinkingFund; periods: string[]; 
         <div>
           <div className="num text-2xl font-semibold text-ink">{money(s.opening)}</div>
           <div className="text-xs text-neutral-500">{s.opening_note || "Not calibrated yet. Set it from the bank balance so the fund matches the account."}</div>
+          <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+            <input
+              type="checkbox"
+              checked={s.auto_opening}
+              disabled={act.busy}
+              onChange={async (e) => {
+                const on = e.target.checked;
+                if (await act.run(() => api.put("/settings", { sinking_fund_auto: on ? "1" : "0" }))) onDone();
+              }}
+            />
+            Recalculate automatically when an uploaded statement first covers a quarter end
+          </label>
         </div>
         <div className="ml-auto flex items-end gap-2">
           <Select value={q} onChange={(e) => setQ(e.target.value)} className="!w-auto">

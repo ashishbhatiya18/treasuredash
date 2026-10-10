@@ -299,8 +299,9 @@ func yearFor(years []FundYear, quarterID string) FundYear {
 type SinkingFund struct {
 	Opening     int64         `json:"opening"`
 	OpeningNote string        `json:"opening_note"`
-	Balance     int64         `json:"balance"`   // after completed quarters
-	Projected   int64         `json:"projected"` // including the running quarter
+	AutoOpening bool          `json:"auto_opening"` // recalculated on statement upload
+	Balance     int64         `json:"balance"`      // after completed quarters
+	Projected   int64         `json:"projected"`    // including the running quarter
 	Quarters    []FundQuarter `json:"quarters"`
 	Years       []FundYear    `json:"years"`
 	Current     FundYear      `json:"current"`
@@ -321,7 +322,7 @@ func (a *App) SinkingFundReport() (*SinkingFund, error) {
 		ids = append(ids, id)
 	}
 	ps.Close()
-	sf := &SinkingFund{Opening: Paise(a.SettingFloat("sinking_fund_opening")), OpeningNote: a.Setting("sinking_fund_note"), Quarters: []FundQuarter{}, Years: []FundYear{}}
+	sf := &SinkingFund{Opening: Paise(a.SettingFloat("sinking_fund_opening")), OpeningNote: a.Setting("sinking_fund_note"), AutoOpening: a.Setting("sinking_fund_auto") != "0", Quarters: []FundQuarter{}, Years: []FundYear{}}
 	bal := sf.Opening
 	sf.Balance = bal
 	today := Today().Format(DateFmt)
@@ -550,6 +551,52 @@ func (a *App) CalibrateSinkingFund(periodID string) (int64, error) {
 	err = a.SaveSettings(map[string]string{
 		"sinking_fund_opening": strconv.FormatFloat(float64(opening)/100, 'f', 2, 64),
 		"sinking_fund_note":    note,
+		"sinking_fund_anchor":  p.To,
 	})
 	return opening, err
+}
+
+// AutoCalibrateSinkingFund re-anchors the opening balance on the latest
+// completed quarter whose end the bank statements cover, once per quarter:
+// the first statement reaching a new quarter end triggers it, re-uploads and
+// overlapping statements do not. It returns a message when the opening moved.
+// Off when the sinking_fund_auto setting is "0".
+func (a *App) AutoCalibrateSinkingFund() (string, error) {
+	if a.Setting("sinking_fund_auto") == "0" {
+		return "", nil
+	}
+	ps, err := a.Periods() // newest first
+	if err != nil {
+		return "", err
+	}
+	anchor := a.Setting("sinking_fund_anchor")
+	for _, q := range ps {
+		if q.EndDate <= anchor {
+			return "", nil // nothing newer than the last calibration is covered
+		}
+		p, err := a.PnLFor(q.ID)
+		if err != nil {
+			return "", err
+		}
+		// a statement must span the quarter end: BankBalanceOn would otherwise
+		// fall back to a stale balance from an earlier statement
+		var spanning int
+		if err := a.DB.QueryRow(`SELECT COUNT(*) FROM bank_statements WHERE from_date<=? AND to_date>=?`, q.EndDate, q.EndDate).Scan(&spanning); err != nil {
+			return "", err
+		}
+		if p.Running || !p.HasBankBalance || spanning == 0 {
+			continue
+		}
+		before := Paise(a.SettingFloat("sinking_fund_opening"))
+		after, err := a.CalibrateSinkingFund(q.ID)
+		if err != nil {
+			return "", err
+		}
+		if after == before {
+			return "", nil
+		}
+		return fmt.Sprintf("Sinking fund opening recalculated from the bank balance at the end of %s: ₹%s → ₹%s.",
+			q.ID, Rupees(before), Rupees(after)), nil
+	}
+	return "", nil
 }
